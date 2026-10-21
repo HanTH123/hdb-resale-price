@@ -1,0 +1,116 @@
+# Runs the HDB_BDDFramework test suites against the published OutSystems environment
+# through the BDDFramework REST runner.
+#
+# - Unit + integration suites: on every push / pull request to main, and on demand.
+# - Contract suite (calls the live data.gov.sg API): nightly, and on demand.
+#
+# Setup (repository Settings > Secrets and variables > Actions > Variables):
+#   OUTSYSTEMS_BASE_URL   e.g. https://myenv.outsystemscloud.com   (no trailing slash needed)
+#
+# The suites run one at a time: the integration suites share fixture months in 1900
+# and must not overlap. The concurrency group also stops two workflow runs from
+# testing the same environment at once.
+
+name: BDD tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 19 * * *"   # 03:30 SGT daily (UTC+8), after the 03:00 sync Timer
+  workflow_dispatch:
+    inputs:
+      include_contract:
+        description: "Also run the live-API contract suite"
+        type: boolean
+        default: false
+
+concurrency:
+  group: bdd-tests-${{ vars.OUTSYSTEMS_BASE_URL }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  OUTSYSTEMS_BASE_URL: ${{ vars.OUTSYSTEMS_BASE_URL }}
+
+jobs:
+  unit-and-integration:
+    name: Unit and integration suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        run: |
+          if [ -z "$OUTSYSTEMS_BASE_URL" ]; then
+            echo "::error::Repository variable OUTSYSTEMS_BASE_URL is not set"
+            exit 1
+          fi
+
+      - name: Summary header
+        run: |
+          {
+            echo "### Unit and integration suites"
+            echo ""
+            echo "| Suite | Result | Scenario results |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ParserTests (unit)
+        run: bash scripts/run-bdd-suite.sh ParserTests
+
+      - name: MonthlyStatsTests (unit)
+        if: ${{ !cancelled() }}
+        run: bash scripts/run-bdd-suite.sh MonthlyStatsTests
+
+      - name: SyncMonthTests (integration)
+        if: ${{ !cancelled() }}
+        run: bash scripts/run-bdd-suite.sh SyncMonthTests
+
+      - name: SyncPlanningTests (integration)
+        if: ${{ !cancelled() }}
+        run: bash scripts/run-bdd-suite.sh SyncPlanningTests
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdd-results-unit-integration
+          path: results/
+          if-no-files-found: warn
+
+  contract:
+    name: Contract suite (live data.gov.sg API)
+    needs: unit-and-integration
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.include_contract) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Summary header
+        run: |
+          {
+            echo "### Contract suite"
+            echo ""
+            echo "| Suite | Result | Scenario results |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: DataGovApiTests (contract)
+        env:
+          BDD_TIMEOUT_SECONDS: "600"
+        run: bash scripts/run-bdd-suite.sh DataGovApiTests
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdd-results-contract
+          path: results/
+          if-no-files-found: warn
