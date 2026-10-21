@@ -25,8 +25,8 @@ This repository holds the parts of the solution that live outside the OutSystems
 
 | Item | Value |
 |---|---|
-| Application | `https://<environment>/HDBResaleFlat/Dashboard` |
-| BDD test runner | `https://<environment>/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
+| Application | `https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/` |
+| BDD test runner | `https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
 
 ---
 
