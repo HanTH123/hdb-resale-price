@@ -33,7 +33,7 @@ This repository holds the application packages exported from OutSystems, plus th
 
 | Item | Value |
 |---|---|
-| Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard) |
+| Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html) |
 | BDD test runner | `<environment URL>/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
 | Test suites (in a browser) | `<environment URL>/HDB_BDDFramework/<Screen>.aspx` |
 
