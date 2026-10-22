@@ -2,7 +2,15 @@
 
 An OutSystems 11 application that loads Singapore's HDB resale flat transactions from [data.gov.sg](https://data.gov.sg), keeps a local, analysis-ready copy in sync, and lets users explore prices by town, flat type, period and lease through a dashboard and a filterable transaction grid.
 
-This repository holds the parts of the solution that live outside the OutSystems environment: the automated test runner, the CI workflow and this documentation. The application itself is published in the OutSystems environment listed below.
+This repository holds the application packages exported from OutSystems, plus the parts of the solution that live outside the OutSystems environment: the automated test runner, the CI workflow and this documentation. The application itself is also published in the OutSystems environment listed below.
+
+| Path | Content |
+|---|---|
+| [`oml/HDB.oap`](oml/HDB.oap) | Application package: `HDBResaleFlat`, `HDB_CS`, `HDB_Sync`, `DataGovSG_IS` |
+| [`oml/HDB_BDDFramework_v2.oml`](oml/HDB_BDDFramework_v2.oml) | Test module with the BDD suites |
+| [`scripts/run-bdd-suite.sh`](scripts/run-bdd-suite.sh) | Runs one test suite through the REST runner |
+| [`.github/workflows/bdd-tests.yml`](.github/workflows/bdd-tests.yml) | CI workflow |
+| [`images/`](images/) | Diagrams used in this README |
 
 ---
 
@@ -17,7 +25,7 @@ This repository holds the parts of the solution that live outside the OutSystems
 7. [Key decisions and trade-offs](#key-decisions-and-trade-offs)
 8. [Automated testing](#automated-testing)
 9. [Security](#security)
-10. [Configuration and first run](#configuration-and-first-run)
+10. [Installation and first run](#installation-and-first-run)
 
 ---
 
@@ -25,8 +33,9 @@ This repository holds the parts of the solution that live outside the OutSystems
 
 | Item | Value |
 |---|---|
-| Application | `https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/` |
+| Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard) |
 | BDD test runner | `https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
+| Test suites (in a browser) | `https://personal-brnzrkey.outsystemscloud.com/HDB_BDDFramework/<Screen>.aspx` |
 
 ---
 
@@ -37,7 +46,11 @@ This repository holds the parts of the solution that live outside the OutSystems
 **For users**, one dashboard page:
 
 - **Filter bar:** town, flat type, and a from/to registration month (defaults to the last 12 months).
-- **KPI cards:** number of transactions, average price, highest price, and price per m² (total price ÷ total floor area).
+- **KPI cards:**
+  - *Transactions* for the selected period (shown as e.g. "Oct 2025 – Oct 2026").
+  - *Average price:* mean of all resale prices.
+  - *Highest price,* with the town, flat type and month of that sale (e.g. "ANG MO KIO · 5 ROOM · Sep 2026").
+  - *Price per m²,* weighted by floor area (total price ÷ total floor area).
 - **Four charts shown together:**
   - *Price trend by flat type:* average price per m², or median resale price (toggle).
   - *Top 10 towns by median price.*
@@ -112,7 +125,7 @@ The UI never calls data.gov.sg at request time. A Timer copies the dataset into 
 
 | Feature | How it is built | Why |
 |---|---|---|
-| KPI cards | One SQL query (`GetKpis`) | One round trip for four figures |
+| KPI cards | One SQL query (`GetKpis`); the top sale's town, flat type and month come from an `OUTER APPLY (SELECT TOP 1 …)` with the same filters, latest month first on ties | One round trip for all four figures and the top-sale details |
 | Price per m² trend | Aggregate over `MonthlyTownStat`, weighted by sales count | Reads thousands of pre-computed rows instead of 240k raw ones; weighting keeps the result a true average for any combination of filters |
 | Median trend, town ranking, lease curve, median by flat type | SQL with `PERCENTILE_CONT(0.5)` over `ResaleTransaction` | Medians can't be combined from pre-computed medians, so they are calculated from the raw rows. Small groups are hidden (fewer than 5, 10 or 30 sales) so single sales don't distort the charts |
 | Chart loading | Each chart has its own data action and loads in parallel; the median trend loads only when that metric is selected | One slow chart doesn't hold up the others |
@@ -147,7 +160,7 @@ The UI never calls data.gov.sg at request time. A Timer copies the dataset into 
 Tests live in the `HDB_BDDFramework` module. Each screen is a test suite of Given / When / Then scenarios, and each suite can be run over REST:
 
 ```
-GET https://<environment>/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>
+GET https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>
 ```
 
 The response includes `IsSuccess`, pass/fail counts and per-scenario results.
@@ -173,12 +186,12 @@ The response includes `IsSuccess`, pass/fail counts and per-scenario results.
 
 - **One suite at a time.** The integration suites share fixture months, so they never overlap. A concurrency group also stops two workflow runs from testing the same environment at once.
 - **Results.** Each suite's JSON response is uploaded as a build artifact, and a pass/fail table is written to the run summary.
-- **Setup:** add a repository **variable** `OUTSYSTEMS_BASE_URL` (for example `https://myenv.outsystemscloud.com`) under *Settings → Secrets and variables → Actions*.
+- **Setup:** add a repository **variable** `OUTSYSTEMS_BASE_URL` (`https://personal-brnzrkey.outsystemscloud.com`) under *Settings → Secrets and variables → Actions*.
 
 **Run a suite locally** (needs `curl` and `jq`):
 
 ```bash
-OUTSYSTEMS_BASE_URL=https://myenv.outsystemscloud.com bash scripts/run-bdd-suite.sh ParserTests
+OUTSYSTEMS_BASE_URL=https://personal-brnzrkey.outsystemscloud.com bash scripts/run-bdd-suite.sh ParserTests
 ```
 
 **Limitation:** a Personal Environment has no LifeTime deployment pipeline, so CI tests what is already published rather than deploying first. With LifeTime, the workflow would deploy the tagged version to a test environment and then run the same suites.
@@ -196,7 +209,20 @@ OUTSYSTEMS_BASE_URL=https://myenv.outsystemscloud.com bash scripts/run-bdd-suite
 
 ---
 
-## Configuration and first run
+## Installation and first run
+
+The application is already published in the environment under [Access](#access). To install it in another OutSystems 11 environment, use the packages in [`oml/`](oml/).
+
+**Prerequisites** (install from Forge first, if the environment does not have them):
+
+- OutSystems UI, OutSystems Charts, OutSystems Data Grid, OutSystems Maps
+- BulkInsert and Sleep (used by the sync and the integration)
+- BDDFramework (only for the test module)
+
+**Install, in this order**
+
+1. **`oml/HDB.oap`**: in Service Studio, *Environment → Open Files…*, select the file and confirm the install. This publishes `HDB_CS`, `DataGovSG_IS`, `HDB_Sync` and `HDBResaleFlat` as one application.
+2. **`oml/HDB_BDDFramework_v2.oml`**: open it in Service Studio and publish (*1-Click Publish*). It depends on the modules from step 1, so publish it only after the application package.
 
 **Site properties**
 
@@ -211,8 +237,8 @@ OUTSYSTEMS_BASE_URL=https://myenv.outsystemscloud.com bash scripts/run-bdd-suite
 
 **First run**
 
-1. Publish in order: `HDB_CS` → `DataGovSG_IS` → `HDB_Sync` → `HDBResaleFlat` → `HDB_BDDFramework`.
-2. In Service Center, set `DataGovSG_IS.APIKey`.
+1. Install the packages as described above (or, from source, publish in order: `HDB_CS` → `DataGovSG_IS` → `HDB_Sync` → `HDBResaleFlat` → `HDB_BDDFramework`).
+2. In Service Center, set `DataGovSG_IS.APIKey` and `HDB_Sync.DatasetId`.
 3. Set `Timer_SyncResaleData` to run **daily** (for example 03:00 SGT).
 4. Start the first run with **Run Now**. The backfill continues across several runs on its own.
 5. Follow progress in the `SyncMonth` and `SyncRun` tables, or in the Timer log in Service Center.
