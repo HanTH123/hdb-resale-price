@@ -7,7 +7,7 @@ This repository holds the application packages exported from OutSystems, plus th
 | Path | Content |
 |---|---|
 | [`oml/HDB.oap`](oml/HDB.oap) | Application package: `HDBResaleFlat`, `HDB_CS`, `HDB_Sync`, `DataGovSG_IS` |
-| [`oml/HDB_BDDFramework_v2.oml`](oml/HDB_BDDFramework_v2.oml) | Test module with the BDD suites |
+| [`oml/HDB_BDDFramework_v3.oml`](oml/HDB_BDDFramework_v3.oml) | Test module with the BDD suites |
 | [`scripts/run-bdd-suite.sh`](scripts/run-bdd-suite.sh) | Runs one test suite through the REST runner |
 | [`.github/workflows/bdd-tests.yml`](.github/workflows/bdd-tests.yml) | CI workflow |
 | [`images/`](images/) | Diagrams used in this README |
@@ -34,8 +34,8 @@ This repository holds the application packages exported from OutSystems, plus th
 | Item | Value |
 |---|---|
 | Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard) |
-| BDD test runner | `https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
-| Test suites (in a browser) | `https://personal-brnzrkey.outsystemscloud.com/HDB_BDDFramework/<Screen>.aspx` |
+| BDD test runner | `<environment URL>/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
+| Test suites (in a browser) | `<environment URL>/HDB_BDDFramework/<Screen>.aspx` |
 
 ---
 
@@ -160,7 +160,7 @@ The UI never calls data.gov.sg at request time. A Timer copies the dataset into 
 Tests live in the `HDB_BDDFramework` module. Each screen is a test suite of Given / When / Then scenarios, and each suite can be run over REST:
 
 ```
-GET https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>
+GET https://<your-env>.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>
 ```
 
 The response includes `IsSuccess`, pass/fail counts and per-scenario results.
@@ -186,12 +186,12 @@ The response includes `IsSuccess`, pass/fail counts and per-scenario results.
 
 - **One suite at a time.** The integration suites share fixture months, so they never overlap. A concurrency group also stops two workflow runs from testing the same environment at once.
 - **Results.** Each suite's JSON response is uploaded as a build artifact, and a pass/fail table is written to the run summary.
-- **Setup:** add a repository **variable** `OUTSYSTEMS_BASE_URL` (`https://personal-brnzrkey.outsystemscloud.com`) under *Settings → Secrets and variables → Actions*.
+- **Setup:** add a repository **variable** `OUTSYSTEMS_BASE_URL` (e.g. `https://<your-env>.outsystemscloud.com`) under *Settings → Secrets and variables → Actions*.
 
 **Run a suite locally** (needs `curl` and `jq`):
 
 ```bash
-OUTSYSTEMS_BASE_URL=https://personal-brnzrkey.outsystemscloud.com bash scripts/run-bdd-suite.sh ParserTests
+OUTSYSTEMS_BASE_URL=https://<your-env>.outsystemscloud.com bash scripts/run-bdd-suite.sh ParserTests
 ```
 
 **Limitation:** a Personal Environment has no LifeTime deployment pipeline, so CI tests what is already published rather than deploying first. With LifeTime, the workflow would deploy the tagged version to a test environment and then run the same suites.
@@ -222,23 +222,23 @@ The application is already published in the environment under [Access](#access).
 **Install, in this order**
 
 1. **`oml/HDB.oap`**: in Service Studio, *Environment → Open Files…*, select the file and confirm the install. This publishes `HDB_CS`, `DataGovSG_IS`, `HDB_Sync` and `HDBResaleFlat` as one application.
-2. **`oml/HDB_BDDFramework_v2.oml`**: open it in Service Studio and publish (*1-Click Publish*). It depends on the modules from step 1, so publish it only after the application package.
+2. **`oml/HDB_BDDFramework_v3.oml`**: open it in Service Studio and publish (*1-Click Publish*). It depends on the modules from step 1, so publish it only after the application package.
 
 **Site properties**
 
 | Module | Property | Default | Purpose |
 |---|---|---|---|
-| `DataGovSG_IS` | `APIKey` (secret) | — | data.gov.sg API key |
-| `DataGovSG_IS` | `PageSize` | 50 | Rows per API request |
-| `DataGovSG_IS` | `RequestDelayMs` | 1000 | Pause between page requests |
+| `DataGovSG_IS` | `APIKey` (secret) | — (required) | data.gov.sg API key |
+| `DataGovSG_IS` | `PageSize` | 1000 | Rows per API request |
+| `DataGovSG_IS` | `RequestDelayMs` | 50 | Pause between page requests |
 | `DataGovSG_IS` | `MaxRetries` | 3 | Attempts per page before giving up |
-| `HDB_Sync` | `DatasetId` | — | data.gov.sg dataset id to sync |
+| `HDB_Sync` | `DatasetId` | — (required) | data.gov.sg dataset id of *Resale flat prices based on registration date from Jan-2017 onwards* (find it on the dataset's page on data.gov.sg) |
 | `HDB_Sync` | `MaxRuntimeSeconds` | 900 | Time budget per Timer run before it continues in a new run |
 
 **First run**
 
 1. Install the packages as described above (or, from source, publish in order: `HDB_CS` → `DataGovSG_IS` → `HDB_Sync` → `HDBResaleFlat` → `HDB_BDDFramework`).
-2. In Service Center, set `DataGovSG_IS.APIKey` and `HDB_Sync.DatasetId`.
+2. In Service Center, set `DataGovSG_IS.APIKey` and `HDB_Sync.DatasetId`. Set both before the first run.
 3. Set `Timer_SyncResaleData` to run **daily** (for example 03:00 SGT).
 4. Start the first run with **Run Now**. The backfill continues across several runs on its own.
 5. Follow progress in the `SyncMonth` and `SyncRun` tables, or in the Timer log in Service Center.
