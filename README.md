@@ -34,8 +34,7 @@ This repository holds the application packages exported from OutSystems, plus th
 
 | Item | Value |
 |---|---|
-| Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Dashboard) |
-| Application, with start page | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html) (shows a loading screen immediately; see below) |
+| Application | [https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html](https://personal-brnzrkey.outsystemscloud.com/HDBResaleFlat/Landing.html) |
 | BDD test runner | `https://personal-brnzrkey.outsystemscloud.com/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/<Screen>` |
 | Test suites (in a browser) | `https://personal-brnzrkey.outsystemscloud.com/HDB_BDDFramework/<Screen>.aspx` |
 
@@ -169,7 +168,7 @@ The UI never calls data.gov.sg at request time. A Timer copies the dataset into 
 | D8 | **One `Status` static entity** for months and runs | Simple, and no free-text status values. | Month and run statuses share one value list. |
 | D9 | **Paging and retries live in `DataGovSG_IS`** | The sync decides *which* months; the integration module decides *how* to fetch them. API changes stay in one module. | — |
 | D10 | **Daily sync with a change check** on the current and previous month | The current month is visible from day one, and late registrations are picked up, without re-downloading unchanged months (one 1-row request per month checked). | The current month is incomplete and is shown as such. |
-| D11 | **No sync lock** | The platform never runs a Timer concurrently with itself. Manual runs go through Service Center's "Run Now". | Operators must not call the sync action directly. |
+| D11 | **No sync lock** | The platform never runs a Timer concurrently with itself. Manual runs go through Service Center's "Run Now", after deactivating the Timer's schedule, so the operator controls exactly when the sync runs. | Operators must not call the sync action directly, and must reactivate the schedule afterwards. |
 | D12 | **Server-side paging and allow-listed filter/sort SQL for the grid** | Scales to any number of rows and keeps SQL construction on the server. | Each new grid column needs an allow-list entry before it can be filtered or sorted. |
 | D13 | **Server-side BDDFramework tests with a REST runner** | Tests the real logic and database behaviour, and can be called from CI. | Tests run against a published environment, not in isolation. |
 
@@ -201,8 +200,8 @@ The response includes `IsSuccess`, pass/fail counts and per-scenario results.
 
 | Job | Suites | When |
 |---|---|---|
-| Unit and integration | `ParserTests`, `MonthlyStatsTests`, `SyncMonthTests`, `SyncPlanningTests` | Every push and pull request to `main`; on demand |
-| Contract | `DataGovApiTests` (calls the live data.gov.sg API) | Nightly at 03:30 SGT, after the sync Timer; on demand with *include contract* ticked |
+| Unit and integration | `ParserTests`, `MonthlyStatsTests`, `SyncMonthTests`, `SyncPlanningTests` | Every push and pull request to `main`; nightly at 03:30 SGT; on demand |
+| Contract | `DataGovApiTests` (calls the live data.gov.sg API) | Nightly at 03:30 SGT, after the sync Timer and the unit and integration job; on demand with *include contract* ticked |
 
 - **One suite at a time.** The integration suites share fixture months, so they never overlap. A concurrency group also stops two workflow runs from testing the same environment at once.
 - **Results.** Each suite's JSON response is uploaded as a build artifact, and a pass/fail table is written to the run summary.
@@ -235,14 +234,14 @@ The application is already published in the environment under [Access](#access).
 
 **Prerequisites** (install from Forge first, if the environment does not have them):
 
-- OutSystems UI, OutSystems Charts, OutSystems Data Grid, OutSystems Maps
+- OutSystems UI, OutSystems Charts, OutSystems Data Grid
 - BulkInsert and Sleep (used by the sync and the integration)
 - BDDFramework (only for the test module)
 
 **Install, in this order**
 
 1. **`oml/HDB.oap`**: in Service Studio, *Environment → Open Files…*, select the file and confirm the install. This publishes `HDB_CS`, `DataGovSG_IS`, `HDB_Sync` and `HDBResaleFlat` as one application.
-2. **`oml/HDB_BDDFramework_v2.oml`**: open it in Service Studio and publish (*1-Click Publish*). It depends on the modules from step 1, so publish it only after the application package.
+2. **`oml/HDB_BDDFramework_v3.oml`**: open it in Service Studio and publish (*1-Click Publish*). It depends on the modules from step 1, so publish it only after the application package.
 
 **Site properties**
 
