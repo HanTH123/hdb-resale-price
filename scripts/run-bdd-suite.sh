@@ -15,6 +15,10 @@ url="${base_url%/}/BDDFramework/rest/v2/BDDTestRunner/HDB_BDDFramework/${suite}"
 out_dir="results"
 out_file="${out_dir}/${suite}.json"
 
+for tool in curl jq; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "::error title=${suite}::'${tool}' is not installed (on Windows: winget install jqlang.jq)"; exit 1; }
+done
+
 mkdir -p "$out_dir"
 echo "Running ${suite}: ${url}"
 
